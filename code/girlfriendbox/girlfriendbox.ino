@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <DS3231.h>
 
 #define PRINTLN(...)  {if(useSerial) {Serial.println(__VA_ARGS__);}};
 #define PRINTLNF(...)  {if(useSerial) {Serial.println(F(__VA_ARGS__));}};
@@ -19,7 +20,11 @@
 
 #define OR "or..."
 
+// !!!Works only on Dates after the year 2000! Else the library must be rewritten...!!!
 #define START_TIME_OF_COUNTER_TEXT "23.05.2020"
+//If you are in a different timezone, you have to add those to the timestamp
+//Timestamp 23.05.2020 +1h because of timezone
+#define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1590195600
 
 #define UNIT_SECONDS "seconds"
 #define UNIT_MINUTES "minutes"
@@ -28,9 +33,26 @@
 #define UNIT_MONTH "months"
 #define UNIT_YEAR "years"
 
+//Indicate if serial should be used
+//If no usb device is connected, serial can not be opened
+//Value is set automatically on startup
 bool useSerial = true;
 
+//LCD Display
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+//Clock objects
+DS3231 rtcClock;
+RTClib rtcLibClock;
+
+//DateTime values
+byte hour;
+byte minute;
+byte second;
+byte day;
+byte month;
+int year;
+long currentUnixTime;
 
 // 1 - Show dates
 // 2 - Configure time
@@ -41,9 +63,9 @@ unsigned int textDisplayTime = 10000;
 unsigned long timeStampLastChangedText = 0;
 byte displayedTextState = 0;
 
-//Fields to cache display state, else it is flickering
+//Fields to cache display state to prevent flickering
 bool resetDisplay = false;
-byte lastCleanedState = 0;
+byte lastDisplayedTextState = 0;
 
 
 void setup() {
@@ -51,6 +73,9 @@ void setup() {
     initLCD();
     printGreeting();
     initSerial();
+
+//    Wire.begin();
+    setClockTime(11, 00, 00, 1, 1, 2020, true);
 
     //Initially reset lcd and display first text
     resetDisplay = true;
@@ -72,8 +97,8 @@ void loop() {
             dateState();
     }
 
-    delay(1000);
     PRINTLNF("----------------------------------");
+    delay(1000);
 }
 
 /**
@@ -111,8 +136,72 @@ void initLCD() {
  * print the greeting message to the display
  */
 void printGreeting() {
-    prepareCursorCenteredText(strlen(GREETING), 0);
+    prepareCursorCenteredText(strlen(GREETING), 1);
     lcd.print(GREETING);
+}
+
+/**
+ * handle the functions if the program is in the date state
+ * Displays the passed time to the start date in different units
+ */
+void dateState() {
+    PRINTF("Current state: ");
+    PRINTLN(displayedTextState);
+
+    getClockValues(hour, minute, second, day, month, year, currentUnixTime);
+    printDateTime(hour, minute, second, day, month, year, currentUnixTime);
+
+    //Reset if state change occurred
+    if (lastDisplayedTextState != displayedTextState) {
+        PRINTLNF("Resetting the Display");
+        lcd.clear();
+    }
+
+    switch (displayedTextState) {
+        case 0:
+            printStartDateCounterLCD();
+            break;
+        case 1:
+            printPassedTimeLCD(151654655, UNIT_SECONDS, strlen(UNIT_SECONDS), 1);
+            break;
+        case 2:
+            printPassedTimeLCD(15165465, UNIT_MINUTES, strlen(UNIT_MINUTES), 1);
+            break;
+        case 3:
+            printPassedTimeLCD(151654, UNIT_HOURS, strlen(UNIT_HOURS), 1);
+            break;
+        case 4:
+            printPassedTimeLCD(15165, UNIT_DAYS, strlen(UNIT_DAYS), 1);
+            break;
+        case 5:
+            printPassedTimeLCD(1516, UNIT_MONTH, strlen(UNIT_MONTH), 1);
+            break;
+        case 6:
+            printPassedTimeLCD(1, UNIT_YEAR, strlen(UNIT_YEAR), 1);
+            break;
+        default:
+            printStartDateCounterLCD();
+
+
+    }
+
+    printDateTimeLCD(hour, minute, second, day, month, year, 3, true);
+
+    //Save last state before updating
+    lastDisplayedTextState = displayedTextState;
+
+    //Set new value if time has passed or and overflow happened
+    if (timeStampLastChangedText + textDisplayTime <= millis() ||
+        millis() < timeStampLastChangedText) {
+
+        //Handle overflow
+        displayedTextState = (displayedTextState + 1) % 7;
+        timeStampLastChangedText = millis();
+    }
+}
+
+void configState() {
+
 }
 
 /**
@@ -130,6 +219,32 @@ void prepareCursorCenteredText(byte textLength, byte row) {
 }
 
 /**
+ * print the values of the date to the serial monitor
+ * @param hour value that should be displayed
+ * @param minute value that should be displayed
+ * @param second value that should be displayed
+ * @param day value that should be displayed
+ * @param month value that should be displayed
+ * @param year value that should be displayed
+ * @param unixTimeStamp value that should be displayed
+ */
+void printDateTime(byte hour, byte minute, byte second, byte day, byte month, int year, long unixTimeStamp) {
+    PRINT(hour);
+    PRINT(":");
+    PRINT(minute);
+    PRINT(":");
+    PRINT(second);
+    PRINT(" ");
+    PRINT(day);
+    PRINT(".");
+    PRINT(month);
+    PRINT(".");
+    PRINT(year);
+    PRINT(", unixTimeStamp: ");
+    PRINTLN(unixTimeStamp);
+}
+
+/**
  * print the date centered to the display in the given row
  * @param hour the given hour, should be in 24h mode
  * @param minute the minute that should be displayed
@@ -138,10 +253,13 @@ void prepareCursorCenteredText(byte textLength, byte row) {
  * @param month the month that should be displayed
  * @param year the year that should be displayed
  * @param row in which the text should be displayed
+ * @param printFullYear True if the year should be printed. Eg. true = 2019 false = 19
+ * @param century20th True if the year is 20** or false if the year is 19**
  */
-void printDateTime(byte hour, byte minute, byte second, byte day, byte month, unsigned int year, byte row) {
-    lcd.setCursor(0, 3);
-    prepareCursorCenteredText(19, row);
+void
+printDateTimeLCD(byte hour, byte minute, byte second, byte day, byte month, int year, byte row, bool printFullYear) {
+    //Depending on the year the text has 19 or 17 chars
+    prepareCursorCenteredText((printFullYear ? 19 : 17), row);
 
     if (hour < 10) {
         lcd.print(" ");
@@ -174,69 +292,7 @@ void printDateTime(byte hour, byte minute, byte second, byte day, byte month, un
     lcd.print(month);
 
     lcd.print(".");
-    lcd.print(year);
-
-}
-
-/**
- * handle the functions if the program is in the date state
- * Displays the passed time to the start date in different units
- */
-void dateState() {
-    PRINTF("Current state: ");
-    PRINTLN(displayedTextState);
-
-    //Divide by amount if case statements
-    byte cleanedState = displayedTextState % 7;
-    PRINTF("Cleaned state: ");
-    PRINTLN(cleanedState);
-
-    //Reset if state change occurred
-    if (lastCleanedState != cleanedState) {
-        PRINTLNF("Resetting the Display");
-        lcd.clear();
-    }
-
-    switch (cleanedState) {
-        case 0:
-            printStartDateCounterLCD();
-            break;
-        case 1:
-            printPassedTimeLCD(151654655, UNIT_SECONDS, strlen(UNIT_SECONDS), 1);
-            break;
-        case 2:
-            printPassedTimeLCD(15165465, UNIT_MINUTES, strlen(UNIT_MINUTES), 1);
-            break;
-        case 3:
-            printPassedTimeLCD(151654, UNIT_HOURS, strlen(UNIT_HOURS), 1);
-            break;
-        case 4:
-            printPassedTimeLCD(15165, UNIT_DAYS, strlen(UNIT_DAYS), 1);
-            break;
-        case 5:
-            printPassedTimeLCD(1516, UNIT_MONTH, strlen(UNIT_MONTH), 1);
-            break;
-        case 6:
-            printPassedTimeLCD(1, UNIT_YEAR, strlen(UNIT_YEAR), 1);
-            break;
-        default:
-            printStartDateCounterLCD();
-
-
-    }
-
-    printDateTime(9, 10, 59, 1, 1, 2020, 3);
-
-    //Set new value if time has passed or and overflow happened
-    if (timeStampLastChangedText + textDisplayTime <= millis() ||
-        millis() < timeStampLastChangedText) {
-
-        displayedTextState++;
-        timeStampLastChangedText = millis();
-    }
-
-    lastCleanedState = cleanedState;
-
+    lcd.print((printFullYear ? year : year - 2000));
 }
 
 /**
@@ -260,11 +316,6 @@ void printStartDateCounterLCD() {
  */
 void printPassedTimeLCD(unsigned long value, char unit[], byte textLengthUnit, byte row) {
     byte totalLength = 1 + getLengthOfNumber(value) + textLengthUnit;
-    PRINT(unit);
-    PRINT(", ");
-    PRINT(getLengthOfNumber(value));
-    PRINT(", ")
-    PRINTLN(totalLength);
     prepareCursorCenteredText(totalLength, row);
     lcd.print(value);
     lcd.print(" ");
@@ -291,6 +342,46 @@ unsigned int getLengthOfNumber(unsigned long value) {
     }
 }
 
-void configState() {
-
+/**
+ * set the time of the rtc clock
+ * @param hour the current hour value
+ * @param minute the current minute value
+ * @param second the current second value
+ * @param day the current day value
+ * @param month the current month value
+ * @param year the current year value
+ * @param clockMode the clock mode. EG true = 24h false = 12h clock
+ */
+void setClockTime(byte hour, byte minute, byte second, byte day, byte month, int year, bool clockMode) {
+    rtcClock.setClockMode(false);
+    //Needs 1 byte as value -> Lib adds 2000 + offset
+    byte tmpYear = (year - 2000);
+    rtcClock.setYear(tmpYear);
+    rtcClock.setMonth(month);
+    rtcClock.setDate(day);
+    rtcClock.setHour(hour);
+    rtcClock.setMinute(minute);
+    rtcClock.setSecond(second);
 }
+
+/**
+ * get the values from the rtc and write the values in the given parameters
+ * @param hour write result hour value of the rtc into the parameter
+ * @param minute write result minute value of the rtc into the parameter
+ * @param second write result second value of the rtc into the parameter
+ * @param day write result day value of the rtc into the parameter
+ * @param month write result month value of the rtc into the parameter
+ * @param year write result hour value from the rtc in parameter -> can only display values 20**
+ * @param currentUnixTime write result unix timestamp value (in sec) of the rtc into the parameter
+ */
+void getClockValues(byte &hour, byte &minute, byte &second, byte &day, byte &month, int &year, long &currentUnixTime) {
+    DateTime now = rtcLibClock.now();
+    hour = now.hour();
+    minute = now.minute();
+    second = now.second();
+    day = now.day();
+    month = now.month();
+    year = now.year();
+    currentUnixTime = now.unixtime();
+}
+
