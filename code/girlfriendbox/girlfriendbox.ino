@@ -11,34 +11,22 @@
 
 //Displayed text. Change it to match your use case
 #define GREETING "Hello <3"
-#define GREETING_LENGTH 8
 
 #define COUNTER_SUBJECT "You make me happy"
-#define COUNTER_SUBJECT_LENGTH 17
 #define SINCE "since..."
-#define SINCE_LENGTH 8
 
 #define THAT_IS "That's..."
-#define THAT_IS_LENGTH 9
 
 #define OR "or..."
-#define OR_LENGTH 5
 
 #define START_TIME_OF_COUNTER_TEXT "23.05.2020"
-#define START_TIME_OF_COUNTER_TEXT_LENGTH 10
 
 #define UNIT_SECONDS "seconds"
-#define UNIT_SECONDS_LENGTH 7
 #define UNIT_MINUTES "minutes"
-#define UNIT_MINUTES_LENGTH 7
 #define UNIT_HOURS "hours"
-#define UNIT_HOURS_LENGTH 5
 #define UNIT_DAYS "days"
-#define UNIT_DAYS_LENGTH 4
 #define UNIT_MONTH "months"
-#define UNIT_MONTH_LENGTH 6
 #define UNIT_YEAR "years"
-#define UNIT_YEAR_LENGTH 5
 
 bool useSerial = true;
 
@@ -49,9 +37,9 @@ LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 byte state = 1;
 
 //Time to show the same text in ms
-unsigned int textDisplayTime = 5000;
+unsigned int textDisplayTime = 10000;
 unsigned long timeStampLastChangedText = 0;
-byte displayedTextState = 250;
+byte displayedTextState = 0;
 
 //Fields to cache display state, else it is flickering
 bool resetDisplay = false;
@@ -64,7 +52,9 @@ void setup() {
     printGreeting();
     initSerial();
 
+    //Initially reset lcd and display first text
     resetDisplay = true;
+    timeStampLastChangedText = millis();
 
 }
 
@@ -76,9 +66,10 @@ void loop() {
 
     switch (state) {
         case 1:
-            printDateState();
+            dateState();
+            break;
         default:
-            printDateState();
+            dateState();
     }
 
     delay(1000);
@@ -120,7 +111,7 @@ void initLCD() {
  * print the greeting message to the display
  */
 void printGreeting() {
-    prepareCursorCenteredText(GREETING_LENGTH, 0);
+    prepareCursorCenteredText(strlen(GREETING), 0);
     lcd.print(GREETING);
 }
 
@@ -211,22 +202,22 @@ void dateState() {
             printStartDateCounterLCD();
             break;
         case 1:
-            printPassedTimeLCD(151654655, UNIT_SECONDS, UNIT_SECONDS_LENGTH, 1);
+            printPassedTimeLCD(151654655, UNIT_SECONDS, strlen(UNIT_SECONDS), 1);
             break;
         case 2:
-            printPassedTimeLCD(15165465, UNIT_MINUTES, UNIT_MINUTES_LENGTH, 1);
+            printPassedTimeLCD(15165465, UNIT_MINUTES, strlen(UNIT_MINUTES), 1);
             break;
         case 3:
-            printPassedTimeLCD(151654, UNIT_HOURS, UNIT_HOURS_LENGTH, 1);
+            printPassedTimeLCD(151654, UNIT_HOURS, strlen(UNIT_HOURS), 1);
             break;
         case 4:
-            printPassedTimeLCD(15165, UNIT_DAYS, UNIT_DAYS_LENGTH, 1);
+            printPassedTimeLCD(15165, UNIT_DAYS, strlen(UNIT_DAYS), 1);
             break;
         case 5:
-            printPassedTimeLCD(1516, UNIT_MONTH, UNIT_MONTH_LENGTH, 1);
+            printPassedTimeLCD(1516, UNIT_MONTH, strlen(UNIT_MONTH), 1);
             break;
         case 6:
-            printPassedTimeLCD(1, UNIT_YEAR, UNIT_YEAR_LENGTH, 1);
+            printPassedTimeLCD(1, UNIT_YEAR, strlen(UNIT_YEAR), 1);
             break;
         default:
             printStartDateCounterLCD();
@@ -252,11 +243,11 @@ void dateState() {
  * print the counter start date to the lcd display with the defined reason
  */
 void printStartDateCounterLCD() {
-    prepareCursorCenteredText(COUNTER_SUBJECT_LENGTH, 0);
+    prepareCursorCenteredText(strlen(COUNTER_SUBJECT), 0);
     lcd.print(COUNTER_SUBJECT);
-    prepareCursorCenteredText(SINCE_LENGTH, 1);
+    prepareCursorCenteredText(strlen(SINCE), 1);
     lcd.print(SINCE);
-    prepareCursorCenteredText(START_TIME_OF_COUNTER_TEXT_LENGTH, 2);
+    prepareCursorCenteredText(strlen(START_TIME_OF_COUNTER_TEXT), 2);
     lcd.print(START_TIME_OF_COUNTER_TEXT);
 }
 
@@ -269,6 +260,11 @@ void printStartDateCounterLCD() {
  */
 void printPassedTimeLCD(unsigned long value, char unit[], byte textLengthUnit, byte row) {
     byte totalLength = 1 + getLengthOfNumber(value) + textLengthUnit;
+    PRINT(unit);
+    PRINT(", ");
+    PRINT(getLengthOfNumber(value));
+    PRINT(", ")
+    PRINTLN(totalLength);
     prepareCursorCenteredText(totalLength, row);
     lcd.print(value);
     lcd.print(" ");
