@@ -10,8 +10,21 @@
 #define LCD_WIDTH 20
 #define LCD_HEIGHT 4
 
+// !!!Works only on Dates after the year 2000! Else the library must be rewritten...!!!
+#define START_TIME_OF_COUNTER_TEXT "23.05.2020"
+//If you are in a different timezone, you have to add those to the timestamp
+//Timestamp 23.05.2020 +1h because of timezone
+#define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1590195600
+
+#define STATE_SHOW_DATE 1
+#define STATE_CONFIG 2
+
+//----------------------------------------------------------------------------------------------------------------------
+// Displayed Text (Change for your language)
+//----------------------------------------------------------------------------------------------------------------------
+
 //Displayed text. Change it to match your use case
-#define GREETING "Hello <3"
+#define GREETING "Hello"
 
 #define COUNTER_SUBJECT "You make me happy"
 #define SINCE "since..."
@@ -20,18 +33,26 @@
 
 #define OR "or..."
 
-// !!!Works only on Dates after the year 2000! Else the library must be rewritten...!!!
-#define START_TIME_OF_COUNTER_TEXT "23.05.2020"
-//If you are in a different timezone, you have to add those to the timestamp
-//Timestamp 23.05.2020 +1h because of timezone
-#define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1590195600
-
 #define UNIT_SECONDS "seconds"
 #define UNIT_MINUTES "minutes"
 #define UNIT_HOURS "hours"
 #define UNIT_DAYS "days"
 #define UNIT_MONTH "months"
 #define UNIT_YEAR "years"
+
+//----------------------------------------------------------------------------------------------------------------------
+// Fields & Variables
+//----------------------------------------------------------------------------------------------------------------------
+
+//Custom lcd Chars
+uint8_t lcdHeartChar[8] = {0x00, 0x0a, 0x1f, 0x1f, 0x0e, 0x04, 0x00};
+uint8_t lcdUpArrowChar[8] = {0x00, 0x0a, 0x1f, 0x1f, 0x0e, 0x04, 0x00};
+uint8_t lcdDownArrowChar[8] = {0x00, 0x0a, 0x1f, 0x1f, 0x0e, 0x04, 0x00};
+
+//Pins for the buttons, configButton is an interrupt
+const int configButtonPin = 3;
+const int upButtonPin = 4;
+const int downButtonPin = 5;
 
 //Indicate if serial should be used
 //If no usb device is connected, serial can not be opened
@@ -45,6 +66,9 @@ LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 DS3231 rtcClock;
 RTClib rtcLibClock;
 
+//Button flag
+bool configButtonPressed = false;
+
 //DateTime values
 byte hour;
 byte minute;
@@ -56,7 +80,7 @@ long currentUnixTime;
 
 // 1 - Show dates
 // 2 - Configure time
-byte state = 1;
+byte state = STATE_SHOW_DATE;
 
 //Time to show the same text in ms
 unsigned int textDisplayTime = 10000;
@@ -67,6 +91,9 @@ byte displayedTextState = 0;
 bool resetDisplay = false;
 byte lastDisplayedTextState = 0;
 
+//----------------------------------------------------------------------------------------------------------------------
+// Arduino functions
+//----------------------------------------------------------------------------------------------------------------------
 
 void setup() {
     // put your setup code here, to run once:
@@ -74,8 +101,11 @@ void setup() {
     printGreeting();
     initSerial();
 
-//    Wire.begin();
-    setClockTime(11, 00, 00, 1, 1, 2020, true);
+    //Set pins and interrupts
+    pinMode(configButtonPin, INPUT_PULLUP);
+    pinMode(upButtonPin, INPUT_PULLUP);
+    pinMode(downButtonPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(configButtonPin), configButtonISR, FALLING);
 
     //Initially reset lcd and display first text
     resetDisplay = true;
@@ -90,16 +120,40 @@ void loop() {
     }
 
     switch (state) {
-        case 1:
+        case STATE_SHOW_DATE:
             dateState();
+            break;
+        case STATE_CONFIG:
+            configState();
             break;
         default:
             dateState();
     }
 
     PRINTLNF("----------------------------------");
-    delay(1000);
+
+    //Go to sleep / delay state = SHOW DATES
+    if (state == STATE_SHOW_DATE) {
+        delay(1000);
+    }
 }
+
+/**
+ * change the state to CONFIG and set the flag that the button was pressed and the display should be resetted
+ */
+void configButtonISR() {
+    if (state == STATE_SHOW_DATE) {
+        //New config process started
+    }
+
+    state = STATE_CONFIG;
+    configButtonPressed = true;
+    resetDisplay = true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Functions
+//----------------------------------------------------------------------------------------------------------------------
 
 /**
  * initialize the serial module if usb is connected
@@ -130,14 +184,23 @@ void initSerial() {
 void initLCD() {
     lcd.begin(LCD_WIDTH, LCD_HEIGHT);
     lcd.clear();
+
+    //Create custom chars
+    lcd.createChar(0, lcdHeartChar);
+    lcd.createChar(1, lcdUpArrowChar);
+    lcd.createChar(2, lcdDownArrowChar);
 }
 
 /**
  * print the greeting message to the display
  */
 void printGreeting() {
-    prepareCursorCenteredText(strlen(GREETING), 1);
+    prepareCursorCenteredText(strlen(GREETING) + 4, 1);
+    lcd.write(0x01);
+    lcd.print(" ");
     lcd.print(GREETING);
+    lcd.print(" ");
+    lcd.write(0x01);
 }
 
 /**
@@ -201,7 +264,6 @@ void dateState() {
 }
 
 void configState() {
-
 }
 
 /**
@@ -256,8 +318,8 @@ void printDateTime(byte hour, byte minute, byte second, byte day, byte month, in
  * @param printFullYear True if the year should be printed. Eg. true = 2019 false = 19
  * @param century20th True if the year is 20** or false if the year is 19**
  */
-void
-printDateTimeLCD(byte hour, byte minute, byte second, byte day, byte month, int year, byte row, bool printFullYear) {
+void printDateTimeLCD(byte hour, byte minute, byte second, byte day, byte month, int year, byte row,
+                      bool printFullYear) {
     //Depending on the year the text has 19 or 17 chars
     prepareCursorCenteredText((printFullYear ? 19 : 17), row);
 
@@ -384,4 +446,3 @@ void getClockValues(byte &hour, byte &minute, byte &second, byte &day, byte &mon
     year = now.year();
     currentUnixTime = now.unixtime();
 }
-
