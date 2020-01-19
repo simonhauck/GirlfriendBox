@@ -45,9 +45,9 @@
 //----------------------------------------------------------------------------------------------------------------------
 
 //Custom lcd Chars
-uint8_t lcdHeartChar[8] = {0x00, 0x0a, 0x1f, 0x1f, 0x0e, 0x04, 0x00};
-uint8_t lcdUpArrowChar[8] = {0x00, 0x0a, 0x1f, 0x1f, 0x0e, 0x04, 0x00};
-uint8_t lcdDownArrowChar[8] = {0x00, 0x0a, 0x1f, 0x1f, 0x0e, 0x04, 0x00};
+byte lcdHeartChar[8] = {0x00, 0x0a, 0x1f, 0x1f, 0x0e, 0x04, 0x00};
+byte lcdUpArrowChar[8] = {0x00, 0x00, 0x00, 0x00, 0x04, 0x0E, 0x1F, 0x1F};
+byte lcdDownArrowChar[8] = {0x1F, 0x1F, 0x0E, 0x04, 0x00, 0x00, 0x00, 0x00};
 
 //Pins for the buttons, configButton is an interrupt
 const int configButtonPin = 3;
@@ -186,9 +186,9 @@ void initLCD() {
     lcd.clear();
 
     //Create custom chars
-    lcd.createChar(0, lcdHeartChar);
-    lcd.createChar(1, lcdUpArrowChar);
-    lcd.createChar(2, lcdDownArrowChar);
+    lcd.createChar(1, lcdHeartChar);
+    lcd.createChar(2, lcdUpArrowChar);
+    lcd.createChar(3, lcdDownArrowChar);
 }
 
 /**
@@ -196,11 +196,11 @@ void initLCD() {
  */
 void printGreeting() {
     prepareCursorCenteredText(strlen(GREETING) + 4, 1);
-    lcd.write(0x01);
+    lcd.write(1);
     lcd.print(" ");
     lcd.print(GREETING);
     lcd.print(" ");
-    lcd.write(0x01);
+    lcd.write(1);
 }
 
 /**
