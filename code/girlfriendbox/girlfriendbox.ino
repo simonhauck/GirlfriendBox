@@ -10,14 +10,13 @@
 #define LCD_WIDTH 20
 #define LCD_HEIGHT 4
 
-// !!!Works only on Dates after the year 2000! Else the library must be rewritten...!!!
 #define START_TIME_OF_COUNTER_TEXT "23.05.2020"
 //If you are in a different timezone, you have to add those to the timestamp
 //Timestamp 23.05.2020 +1h because of timezone
 #define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1590195600
 
-#define STATE_SHOW_DATE 1
-#define STATE_CONFIG 2
+#define STATE_SHOW_DATE 0
+#define STATE_CONFIG 1
 
 //----------------------------------------------------------------------------------------------------------------------
 // Displayed Text (Change for your language)
@@ -67,7 +66,7 @@ DS3231 rtcClock;
 RTClib rtcLibClock;
 
 //Button flag
-bool configButtonPressed = false;
+volatile bool configButtonPressed = false;
 
 //DateTime values
 byte hour;
@@ -78,18 +77,22 @@ byte month;
 int year;
 long currentUnixTime;
 
-// 1 - Show dates
-// 2 - Configure time
+// 0 - Show dates
+// 1 - Configure time
 byte state = STATE_SHOW_DATE;
 
 //Time to show the same text in ms
 unsigned int textDisplayTime = 10000;
 unsigned long timeStampLastChangedText = 0;
 byte displayedTextState = 0;
-
 //Fields to cache display state to prevent flickering
-bool resetDisplay = false;
 byte lastDisplayedTextState = 0;
+
+//Config state variables
+byte configDateTimeState = 0;
+int downButtonLastState = HIGH;
+int upButtonLastState = HIGH;
+
 
 //----------------------------------------------------------------------------------------------------------------------
 // Arduino functions
@@ -97,26 +100,32 @@ byte lastDisplayedTextState = 0;
 
 void setup() {
     // put your setup code here, to run once:
+
+    //Set pins
+    pinMode(configButtonPin, INPUT_PULLUP);
+    pinMode(upButtonPin, INPUT_PULLUP);
+    pinMode(downButtonPin, INPUT_PULLUP);
+
     initLCD();
     printGreeting();
     initSerial();
 
-    //Set pins and interrupts
-    pinMode(configButtonPin, INPUT_PULLUP);
-    pinMode(upButtonPin, INPUT_PULLUP);
-    pinMode(downButtonPin, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(configButtonPin), configButtonISR, FALLING);
-
     //Initially reset lcd and display first text
-    resetDisplay = true;
+    lcd.clear();
     timeStampLastChangedText = millis();
+
+    //Attack interrupt
+    attachInterrupt(digitalPinToInterrupt(configButtonPin), configButtonISR, FALLING);
 
 }
 
 void loop() {
-    if (resetDisplay) {
-        lcd.clear();
-        resetDisplay = false;
+    //Switch to config
+    if (configButtonPressed && state != STATE_CONFIG) {
+        PRINTLN("ConfigButton was pressed. Switch to config mode");
+        configButtonPressed = false;
+        state = STATE_CONFIG;
+        configDateTimeState = 0;
     }
 
     switch (state) {
@@ -126,7 +135,7 @@ void loop() {
         case STATE_CONFIG:
             configState();
             break;
-        default:
+        default: PRINTLNF("WARNING: Default State in loop() used!");
             dateState();
     }
 
@@ -142,13 +151,7 @@ void loop() {
  * change the state to CONFIG and set the flag that the button was pressed and the display should be resetted
  */
 void configButtonISR() {
-    if (state == STATE_SHOW_DATE) {
-        //New config process started
-    }
-
-    state = STATE_CONFIG;
     configButtonPressed = true;
-    resetDisplay = true;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -208,7 +211,7 @@ void printGreeting() {
  * Displays the passed time to the start date in different units
  */
 void dateState() {
-    PRINTF("Current state: ");
+    PRINTF("DateState() Function State: ");
     PRINTLN(displayedTextState);
 
     getClockValues(hour, minute, second, day, month, year, currentUnixTime);
@@ -264,6 +267,77 @@ void dateState() {
 }
 
 void configState() {
+    PRINTF("ConfigState() Function, State: ");
+    PRINTLN(configDateTimeState);
+
+    bool printFullDate = true;
+
+    // The start position of the lcd
+    byte lcdStartPosition = (LCD_WIDTH - (printFullDate ? 19 : 17)) / 2;
+
+    //Set headline
+    lcd.clear();
+    prepareCursorCenteredText(15, 0);
+    lcd.print("Set Date & Time");
+
+    switch (configDateTimeState) {
+        case 0:
+            //Set hour:
+            printArrowsLCD(2, lcdStartPosition, 1, true);
+            printArrowsLCD(2, lcdStartPosition, 3, false);
+            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            PRINTLNF("Configure hour...");
+            break;
+        case 1:
+            //Set minute:
+            printArrowsLCD(2, lcdStartPosition + 3, 1, true);
+            printArrowsLCD(2, lcdStartPosition + 3, 3, false);
+            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            PRINTLNF("Configure minute...");
+            break;
+        case 2:
+            //Set second:
+            printArrowsLCD(2, lcdStartPosition + 6, 1, true);
+            printArrowsLCD(2, lcdStartPosition + 6, 3, false);
+            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            PRINTLNF("Configure second...");
+            break;
+        case 3:
+            //Set day:
+            printArrowsLCD(2, lcdStartPosition + 9, 1, true);
+            printArrowsLCD(2, lcdStartPosition + 9, 3, false);
+            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            PRINTLNF("Configure day...");
+            break;
+        case 4:
+            //Set month:
+            printArrowsLCD(2, lcdStartPosition + 12, 1, true);
+            printArrowsLCD(2, lcdStartPosition + 12, 3, false);
+            printDateTimeLCD(hour, minute, second, day, minute, year, 2, true);
+            PRINTLNF("Configure month...");
+            break;
+        case 5:
+            printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 1, true);
+            printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 3, false);
+            //Set year:
+            printDateTimeLCD(hour, minute, second, day, minute, year, 2, true);
+            PRINTLNF("Configure year...");
+            break;
+        default:
+            state = STATE_SHOW_DATE;
+            lcd.clear();
+            //Restart counter on other state
+            displayedTextState = 0;
+            PRINTLNF("Config complete. Return to show date mode...");
+    }
+
+
+    if (configButtonPressed) {
+        configButtonPressed = false;
+        configDateTimeState++;
+    }
+
+    delay(250);
 }
 
 /**
@@ -445,4 +519,18 @@ void getClockValues(byte &hour, byte &minute, byte &second, byte &day, byte &mon
     month = now.month();
     year = now.year();
     currentUnixTime = now.unixtime();
+}
+
+/**
+ * print the arrows on the lcd at the given position
+ * @param amount the amount of arrows that should be printed
+ * @param xPos the x position on the lcd of the first char
+ * @param yPos the y position on the lcd of the first char
+ * @param up true if the arrows should face up
+ */
+void printArrowsLCD(byte amount, byte xPos, byte yPos, bool up) {
+    lcd.setCursor(xPos, yPos);
+    for (int i = 0; i < amount; i++) {
+        lcd.write((up) ? 2 : 3);
+    }
 }
