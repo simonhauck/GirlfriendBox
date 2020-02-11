@@ -95,6 +95,8 @@ int downButtonLastState = HIGH;
 unsigned long lastTimeDownButtonPressed = 0;
 int upButtonLastState = HIGH;
 unsigned long lastTimeUpButtonPressed = 0;
+unsigned long timeStampLastLcdDisplay = 0;
+bool resetDisplay = false;
 
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -276,22 +278,19 @@ void configStateSetup() {
     downButtonLastState = HIGH;
     state = STATE_CONFIG;
     configDateTimeState = 0;
+    lcd.clear();
 }
 
+/**
+ * Switch to the config state and set the time of the rtc clock
+ */
 void configState() {
+    bool printFullDate = true;
     PRINTF("ConfigState() Function, State: ");
     PRINTLN(configDateTimeState);
 
-    bool printFullDate = true;
-
     // The start position of the lcd
     byte lcdStartPosition = (LCD_WIDTH - (printFullDate ? 19 : 17)) / 2;
-
-    //Set headline
-    lcd.clear();
-    prepareCursorCenteredText(15, 0);
-    lcd.print("Set Date & Time");
-    printDateTimeLCD(hour, minute, second, day, month, year, 2, printFullDate);
 
     //Check if a button was pressed
     bool downButtonPressed = false;
@@ -301,12 +300,30 @@ void configState() {
     } else if (detectButtonPressed(upButtonPin, upButtonLastState, lastTimeUpButtonPressed, buttonDebounceTime)) {
         upButtonPressed = true;
     }
+    bool buttonPressed = downButtonPressed || upButtonPressed;
+
+    //Reset display in new state
+    if (configButtonPressed) {
+        lcd.clear();
+    }
+
+    // Write display if 1 second has passed or a button was pressed
+    if (configButtonPressed || buttonPressed ||
+        millis() >= timeStampLastLcdDisplay + 1000 ||
+        millis() < timeStampLastLcdDisplay) {
+        //Get current clock values
+        getClockValues(hour, minute, second, day, month, year, currentUnixTime);
+        resetDisplay = true;
+        timeStampLastLcdDisplay = millis();
+
+    }
+
 
     switch (configDateTimeState) {
         case 0:
             //Set hour:
-            printArrowsLCD(2, lcdStartPosition, 1, true);
-            printArrowsLCD(2, lcdStartPosition, 3, false);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition, 1, true);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition, 3, false);
             if (downButtonPressed || upButtonPressed) {
                 modifyHour(hour, upButtonPressed, downButtonPressed);
                 rtcClock.setHour(hour);
@@ -315,8 +332,8 @@ void configState() {
             break;
         case 1:
             //Set minute:
-            printArrowsLCD(2, lcdStartPosition + 3, 1, true);
-            printArrowsLCD(2, lcdStartPosition + 3, 3, false);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 3, 1, true);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 3, 3, false);
             if (downButtonPressed || upButtonPressed) {
                 modifyMinuteAndSecond(minute, upButtonPressed, downButtonPressed);
                 rtcClock.setMinute(minute);
@@ -325,8 +342,8 @@ void configState() {
             break;
         case 2:
             //Set second:
-            printArrowsLCD(2, lcdStartPosition + 6, 1, true);
-            printArrowsLCD(2, lcdStartPosition + 6, 3, false);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 6, 1, true);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 6, 3, false);
             if (downButtonPressed || upButtonPressed) {
                 modifyMinuteAndSecond(second, upButtonPressed, downButtonPressed);
                 rtcClock.setSecond(second);
@@ -335,8 +352,8 @@ void configState() {
             break;
         case 3:
             //Set day:
-            printArrowsLCD(2, lcdStartPosition + 9, 1, true);
-            printArrowsLCD(2, lcdStartPosition + 9, 3, false);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 9, 1, true);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 9, 3, false);
             if (downButtonPressed || upButtonPressed) {
                 modifyDay(day, upButtonPressed, downButtonPressed);
                 rtcClock.setDate(day);
@@ -345,8 +362,8 @@ void configState() {
             break;
         case 4:
             //Set month:
-            printArrowsLCD(2, lcdStartPosition + 12, 1, true);
-            printArrowsLCD(2, lcdStartPosition + 12, 3, false);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 12, 1, true);
+            if (resetDisplay) printArrowsLCD(2, lcdStartPosition + 12, 3, false);
             if (downButtonPressed || upButtonPressed) {
                 modifyMonth(month, upButtonPressed, downButtonPressed);
                 rtcClock.setMonth(month);
@@ -354,8 +371,8 @@ void configState() {
             PRINTLNF("Configure month...");
             break;
         case 5:
-            printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 1, true);
-            printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 3, false);
+            if (resetDisplay) printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 1, true);
+            if (resetDisplay) printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 3, false);
             //Set year:
             if (downButtonPressed || upButtonPressed) {
                 modifyYear(year, upButtonPressed, downButtonPressed);
@@ -375,6 +392,12 @@ void configState() {
             lcd.clear();
     }
 
+    //Write time and day after value was potentially updated
+    if (resetDisplay) {
+        prepareCursorCenteredText(15, 0);
+        lcd.print("Set Date & Time");
+        printDateTimeLCD(hour, minute, second, day, month, year, 2, printFullDate);
+    }
 
     if (configButtonPressed) {
         configButtonPressed = false;
