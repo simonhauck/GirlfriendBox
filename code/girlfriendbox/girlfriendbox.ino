@@ -52,6 +52,7 @@ byte lcdDownArrowChar[8] = {0x1F, 0x1F, 0x0E, 0x04, 0x00, 0x00, 0x00, 0x00};
 const int configButtonPin = 3;
 const int upButtonPin = 4;
 const int downButtonPin = 5;
+const unsigned int buttonDebounceTime = 100;
 
 //Indicate if serial should be used
 //If no usb device is connected, serial can not be opened
@@ -91,7 +92,9 @@ byte lastDisplayedTextState = 0;
 //Config state variables
 byte configDateTimeState = 0;
 int downButtonLastState = HIGH;
+unsigned long lastTimeDownButtonPressed = 0;
 int upButtonLastState = HIGH;
+unsigned long lastTimeUpButtonPressed = 0;
 
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -122,10 +125,7 @@ void setup() {
 void loop() {
     //Switch to config
     if (configButtonPressed && state != STATE_CONFIG) {
-        PRINTLN("ConfigButton was pressed. Switch to config mode");
-        configButtonPressed = false;
-        state = STATE_CONFIG;
-        configDateTimeState = 0;
+        configStateSetup();
     }
 
     switch (state) {
@@ -266,6 +266,18 @@ void dateState() {
     }
 }
 
+/**
+ * setup the config state, if it is nealy entered
+ */
+void configStateSetup() {
+    PRINTLN("ConfigButton was pressed. Switch to config mode");
+    configButtonPressed = false;
+    upButtonLastState = HIGH;
+    downButtonLastState = HIGH;
+    state = STATE_CONFIG;
+    configDateTimeState = 0;
+}
+
 void configState() {
     PRINTF("ConfigState() Function, State: ");
     PRINTLN(configDateTimeState);
@@ -279,48 +291,76 @@ void configState() {
     lcd.clear();
     prepareCursorCenteredText(15, 0);
     lcd.print("Set Date & Time");
+    printDateTimeLCD(hour, minute, second, day, month, year, 2, printFullDate);
+
+    //Check if a button was pressed
+    bool downButtonPressed = false;
+    bool upButtonPressed = false;
+    if (detectButtonPressed(downButtonPin, downButtonLastState, lastTimeDownButtonPressed, buttonDebounceTime)) {
+        downButtonPressed = true;
+    } else if (detectButtonPressed(upButtonPin, upButtonLastState, lastTimeUpButtonPressed, buttonDebounceTime)) {
+        upButtonPressed = true;
+    }
 
     switch (configDateTimeState) {
         case 0:
             //Set hour:
             printArrowsLCD(2, lcdStartPosition, 1, true);
             printArrowsLCD(2, lcdStartPosition, 3, false);
-            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            if (downButtonPressed || upButtonPressed) {
+                modifyHour(hour, upButtonPressed, downButtonPressed);
+                rtcClock.setHour(hour);
+            }
             PRINTLNF("Configure hour...");
             break;
         case 1:
             //Set minute:
             printArrowsLCD(2, lcdStartPosition + 3, 1, true);
             printArrowsLCD(2, lcdStartPosition + 3, 3, false);
-            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            if (downButtonPressed || upButtonPressed) {
+                modifyMinuteAndSecond(minute, upButtonPressed, downButtonPressed);
+                rtcClock.setMinute(minute);
+            }
             PRINTLNF("Configure minute...");
             break;
         case 2:
             //Set second:
             printArrowsLCD(2, lcdStartPosition + 6, 1, true);
             printArrowsLCD(2, lcdStartPosition + 6, 3, false);
-            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            if (downButtonPressed || upButtonPressed) {
+                modifyMinuteAndSecond(second, upButtonPressed, downButtonPressed);
+                rtcClock.setSecond(second);
+            }
             PRINTLNF("Configure second...");
             break;
         case 3:
             //Set day:
             printArrowsLCD(2, lcdStartPosition + 9, 1, true);
             printArrowsLCD(2, lcdStartPosition + 9, 3, false);
-            printDateTimeLCD(hour, minute, second, day, minute, year, 2, printFullDate);
+            if (downButtonPressed || upButtonPressed) {
+                modifyDay(day, upButtonPressed, downButtonPressed);
+                rtcClock.setDate(day);
+            }
             PRINTLNF("Configure day...");
             break;
         case 4:
             //Set month:
             printArrowsLCD(2, lcdStartPosition + 12, 1, true);
             printArrowsLCD(2, lcdStartPosition + 12, 3, false);
-            printDateTimeLCD(hour, minute, second, day, minute, year, 2, true);
+            if (downButtonPressed || upButtonPressed) {
+                modifyMonth(month, upButtonPressed, downButtonPressed);
+                rtcClock.setMonth(month);
+            }
             PRINTLNF("Configure month...");
             break;
         case 5:
             printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 1, true);
             printArrowsLCD((printFullDate ? 4 : 2), lcdStartPosition + 15, 3, false);
             //Set year:
-            printDateTimeLCD(hour, minute, second, day, minute, year, 2, true);
+            if (downButtonPressed || upButtonPressed) {
+                modifyYear(year, upButtonPressed, downButtonPressed);
+                rtcClock.setYear(year - 2000);
+            }
             PRINTLNF("Configure year...");
             break;
         default:
@@ -329,6 +369,10 @@ void configState() {
             //Restart counter on other state
             displayedTextState = 0;
             PRINTLNF("Config complete. Return to show date mode...");
+            prepareCursorCenteredText(16, 1);
+            lcd.print("Config complete!");
+            delay(1000);
+            lcd.clear();
     }
 
 
@@ -337,7 +381,7 @@ void configState() {
         configDateTimeState++;
     }
 
-    delay(250);
+    delay(10);
 }
 
 /**
@@ -532,5 +576,130 @@ void printArrowsLCD(byte amount, byte xPos, byte yPos, bool up) {
     lcd.setCursor(xPos, yPos);
     for (int i = 0; i < amount; i++) {
         lcd.write((up) ? 2 : 3);
+    }
+}
+
+/**
+ * return true if the debounce time has passed of a button
+ * @param lastTimeButtonPressed last time the button was pressed
+ * @param debounceTime the time it should wait
+ * @return true if the time has passed
+ */
+bool debounceTimePassed(unsigned long lastTimeButtonPressed, unsigned int debounceTime) {
+    long time = millis();
+
+    return time < lastTimeButtonPressed || time > lastTimeButtonPressed + debounceTime;
+}
+
+/**
+ * detect if the given button at the given pin was pressed
+ * @param buttonPin the pin of the button
+ * @param lastState the last state of the button
+ */
+bool detectButtonPressed(byte buttonPin, int &lastState, unsigned long &lastTimeButtonPressed,
+                         unsigned int debounceTime) {
+    int state = digitalRead(buttonPin);
+    if (state == LOW && lastState == HIGH && debounceTimePassed(lastTimeButtonPressed, debounceTime)) {
+        lastState = state;
+        lastTimeButtonPressed = millis();
+
+        return true;
+    }
+
+    //Reset button
+    if (state == HIGH && lastState == LOW) {
+        lastState = HIGH;
+    }
+    return false;
+}
+
+/**
+ * increase or decrease the hour value by one
+ * @param val current hour value
+ * @param increase increase the value
+ * @param decrease  decrease the value
+ */
+void modifyHour(byte &val, bool increase, bool decrease) {
+    if (increase) {
+        val = (val + 1) % 24;
+    }
+    if (decrease) {
+        //With byte -1 is 255
+        if (val == 0) val = 23;
+        else val--;
+    }
+}
+
+/**
+ * increase or decrease the second or minute value by one
+ * @param val current second/minute value
+ * @param increase increase the value
+ * @param decrease  decrease the value
+ */
+void modifyMinuteAndSecond(byte &val, bool increase, bool decrease) {
+
+    if (increase) {
+        val = (val + 1) % 60;
+    }
+    if (decrease) {
+        //With byte -1 is 255
+        if (val == 0) val = 59;
+        else val--;
+    }
+}
+
+/**
+ * increase or decrease the year value by one
+ * @param val current year value
+ * @param increase increase the value
+ * @param decrease  decrease the value
+ */
+void modifyYear(int &val, bool increase, bool decrease) {
+    if (increase) {
+        val = year + 1;
+    }
+    if (decrease) {
+        val--;
+        if (val <= 2020) val = 2020;
+    }
+}
+
+/**
+ * increase or decrease the month value by one
+ * @param val current month value
+ * @param increase increase the value
+ * @param decrease  decrease the value
+ */
+void modifyMonth(byte &val, bool increase, bool decrease) {
+    if (increase) {
+        val++;
+        PRINTLNF("Test1");
+
+        if (val > 12) val = 1;
+    }
+    if (decrease) {
+        val--;
+        if (val == 0) val = 12;
+        PRINTLNF("Test2");
+
+    }
+    PRINTLN(val);
+    PRINTLNF("Test");
+}
+
+/**
+ * increase or decrease the day value by one
+ * @param val current day value
+ * @param increase increase the value
+ * @param decrease  decrease the value
+ */
+void modifyDay(byte &val, bool increase, bool decrease) {
+    if (increase) {
+        val++;
+        if (day >= 32) day = 1;
+    }
+    if (decrease) {
+        val--;
+        if (day == 0) day = 31;
     }
 }
