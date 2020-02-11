@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include "LowPower.h"
 #include <DS3231.h>
 
 #define PRINTLN(...)  {if(useSerial) {Serial.println(__VA_ARGS__);}};
@@ -10,10 +11,11 @@
 #define LCD_WIDTH 20
 #define LCD_HEIGHT 4
 
-#define START_TIME_OF_COUNTER_TEXT "23.05.2020"
-//If you are in a different timezone, you have to add those to the timestamp
-//Timestamp 23.05.2020 +1h because of timezone
-#define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1590195600
+//Set start time as string to display, as array and timestamp, so that the calculation is easier
+#define START_TIME_OF_COUNTER_TEXT "23.05.2019"
+//TimeStamp, you can use your timezone, if you set the time also in the timezone
+#define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1558569600
+
 
 #define STATE_SHOW_DATE 0
 #define STATE_CONFIG 1
@@ -121,7 +123,6 @@ void setup() {
 
     //Attack interrupt
     attachInterrupt(digitalPinToInterrupt(configButtonPin), configButtonISR, FALLING);
-
 }
 
 void loop() {
@@ -145,7 +146,8 @@ void loop() {
 
     //Go to sleep / delay state = SHOW DATES
     if (state == STATE_SHOW_DATE) {
-        delay(1000);
+        //delay(1000);
+        LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
     }
 }
 
@@ -230,22 +232,22 @@ void dateState() {
             printStartDateCounterLCD();
             break;
         case 1:
-            printPassedTimeLCD(151654655, UNIT_SECONDS, strlen(UNIT_SECONDS), 1);
+            printPassedTimeLCD(calculatePassedSeconds(), UNIT_SECONDS, strlen(UNIT_SECONDS), 1);
             break;
         case 2:
-            printPassedTimeLCD(15165465, UNIT_MINUTES, strlen(UNIT_MINUTES), 1);
+            printPassedTimeLCD(calculatePassedMinutes(), UNIT_MINUTES, strlen(UNIT_MINUTES), 1);
             break;
         case 3:
-            printPassedTimeLCD(151654, UNIT_HOURS, strlen(UNIT_HOURS), 1);
+            printPassedTimeLCD(calculatePassedHours(), UNIT_HOURS, strlen(UNIT_HOURS), 1);
             break;
         case 4:
-            printPassedTimeLCD(15165, UNIT_DAYS, strlen(UNIT_DAYS), 1);
+            printPassedTimeLCD(calculatePassedDays(), UNIT_DAYS, strlen(UNIT_DAYS), 1);
             break;
         case 5:
-            printPassedTimeLCD(1516, UNIT_MONTH, strlen(UNIT_MONTH), 1);
+            printPassedTimeLCD(calculatePassedMonths(), UNIT_MONTH, strlen(UNIT_MONTH), 1);
             break;
         case 6:
-            printPassedTimeLCD(1, UNIT_YEAR, strlen(UNIT_YEAR), 1);
+            printPassedTimeLCD(calculatePassedYears(), UNIT_YEAR, strlen(UNIT_YEAR), 1);
             break;
         default:
             printStartDateCounterLCD();
@@ -263,9 +265,10 @@ void dateState() {
         millis() < timeStampLastChangedText) {
 
         //Handle overflow
-        displayedTextState = (displayedTextState + 1) % 7;
+        //displayedTextState = (displayedTextState + 1) % 7;
         timeStampLastChangedText = millis();
     }
+    displayedTextState = 5;
 }
 
 /**
@@ -725,4 +728,55 @@ void modifyDay(byte &val, bool increase, bool decrease) {
         val--;
         if (day == 0) day = 31;
     }
+}
+
+/**
+ * Calculate the passed seconds since the specified date
+ * @return the time in seconds
+ */
+unsigned long calculatePassedSeconds() {
+    return currentUnixTime - START_TIME_OF_COUNTER_UNIX_TIMESTAMP;
+}
+
+/**
+ * Calculate the passed time in minutes
+ * @return the time in minutes
+ */
+unsigned long calculatePassedMinutes() {
+    return calculatePassedSeconds() / 60;
+}
+
+/**
+ * Calculate the passed time in hours
+ * @return the time in hours
+ */
+unsigned long calculatePassedHours() {
+    return calculatePassedMinutes() / 60;
+}
+
+/**
+ * Calculate the amount of passed days
+ * @return the amount of passed days
+ */
+unsigned long calculatePassedDays() {
+    return calculatePassedHours() / 24;
+}
+
+/**
+ * calculate the passed month
+ * @return the amount of months passed
+ */
+unsigned long calculatePassedMonths() {
+    // Refer to https://www.jotform.com/help/443-Mastering-Date-and-Time-Calculation
+    //1 month (30.44 days)= 2629743 seconds
+    return calculatePassedSeconds() / 2629743;
+}
+
+/**
+ * @return the passed time as year
+ */
+unsigned long calculatePassedYears() {
+    // Refer to https://www.jotform.com/help/443-Mastering-Date-and-Time-Calculation
+    //1 year (365.24 days)= 31556926 seconds
+    return calculatePassedSeconds() / 31556926;
 }
