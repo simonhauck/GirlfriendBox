@@ -85,8 +85,9 @@ long currentUnixTime;
 byte state = STATE_SHOW_DATE;
 
 //Time to show the same text in ms
-unsigned int textDisplayTime = 10000;
-unsigned long timeStampLastChangedText = 0;
+//Time to show same text, 1 cycle is 1 sec
+unsigned int textDisplayTimeCycles = 10;
+unsigned long textDisplayCurrentCycle = 0;
 byte displayedTextState = 0;
 //Fields to cache display state to prevent flickering
 byte lastDisplayedTextState = 0;
@@ -119,7 +120,6 @@ void setup() {
 
     //Initially reset lcd and display first text
     lcd.clear();
-    timeStampLastChangedText = millis();
 
     //Attack interrupt
     attachInterrupt(digitalPinToInterrupt(configButtonPin), configButtonISR, FALLING);
@@ -260,13 +260,13 @@ void dateState() {
     //Save last state before updating
     lastDisplayedTextState = displayedTextState;
 
+    textDisplayCurrentCycle++;
     //Set new value if time has passed or and overflow happened
-    if (timeStampLastChangedText + textDisplayTime <= millis() ||
-        millis() < timeStampLastChangedText) {
-
-        //Handle overflow
+    if (textDisplayCurrentCycle >= textDisplayTimeCycles) {
+        //Reset the state
+        textDisplayCurrentCycle = 0;
+        //7 Modes for default, seconds, minutes, hours, month, year
         displayedTextState = (displayedTextState + 1) % 7;
-        timeStampLastChangedText = millis();
     }
 }
 
