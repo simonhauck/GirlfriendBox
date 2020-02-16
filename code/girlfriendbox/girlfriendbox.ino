@@ -265,10 +265,9 @@ void dateState() {
         millis() < timeStampLastChangedText) {
 
         //Handle overflow
-        //displayedTextState = (displayedTextState + 1) % 7;
+        displayedTextState = (displayedTextState + 1) % 7;
         timeStampLastChangedText = millis();
     }
-    displayedTextState = 5;
 }
 
 /**
