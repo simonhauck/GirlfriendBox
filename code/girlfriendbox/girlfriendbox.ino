@@ -307,6 +307,7 @@ void configState() {
     //Reset display in new state
     if (configButtonPressed) {
         lcd.clear();
+        configDateTimeState++;
     }
 
     // Write display if 1 second has passed or a button was pressed
@@ -319,6 +320,9 @@ void configState() {
         timeStampLastLcdDisplay = millis();
 
     }
+
+    //Reset button
+    configButtonPressed = false;
 
 
     switch (configDateTimeState) {
@@ -392,6 +396,7 @@ void configState() {
             lcd.print("Config complete!");
             delay(1000);
             lcd.clear();
+            return;
     }
 
     //Write time and day after value was potentially updated
@@ -401,12 +406,7 @@ void configState() {
         printDateTimeLCD(hour, minute, second, day, month, year, 2, printFullDate);
     }
 
-    if (configButtonPressed) {
-        configButtonPressed = false;
-        configDateTimeState++;
-    }
-
-    delay(10);
+    delay(100);
 }
 
 /**
