@@ -172,9 +172,7 @@ void configButtonISR() {
  * initialize the serial module if usb is connected
  */
 void initSerial() {
-    if (useSerial) {
-        Serial.begin(9600);
-    }
+    Serial.begin(9600);
     lcd.setCursor(0, 3);
 
     //Wait for serial
