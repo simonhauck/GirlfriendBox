@@ -123,6 +123,9 @@ void setup() {
 
     //Attack interrupt
     attachInterrupt(digitalPinToInterrupt(configButtonPin), configButtonISR, FALLING);
+    delay(100);
+    state = STATE_SHOW_DATE;
+
 }
 
 void loop() {
@@ -146,8 +149,11 @@ void loop() {
 
     //Go to sleep / delay state = SHOW DATES
     if (state == STATE_SHOW_DATE) {
+        PRINTLNF("Going to sleep");
+        if (useSerial) Serial.flush();
         //delay(1000);
         LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+        PRINTLNF("Wake up");
     }
 }
 
@@ -166,7 +172,9 @@ void configButtonISR() {
  * initialize the serial module if usb is connected
  */
 void initSerial() {
-    Serial.begin(9600);
+    if (useSerial) {
+        Serial.begin(9600);
+    }
     lcd.setCursor(0, 3);
 
     //Wait for serial
