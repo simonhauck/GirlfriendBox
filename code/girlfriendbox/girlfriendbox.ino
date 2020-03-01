@@ -15,6 +15,10 @@
 #define START_TIME_OF_COUNTER_TEXT "23.05.2019"
 //TimeStamp, you can use your timezone, if you set the time also in the timezone
 #define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1558569600
+//Add year month and day as values... because i am to lazy to calculate those values from the timestamp ;)
+#define START_TIME_YEAR 2019
+#define START_TIME_MONTH 5
+#define START_TIME_DAY 23
 
 
 #define STATE_SHOW_DATE 0
@@ -52,9 +56,9 @@ byte lcdDownArrowChar[8] = {0x1F, 0x1F, 0x0E, 0x04, 0x00, 0x00, 0x00, 0x00};
 
 //Pins for the buttons, configButton is an interrupt
 const int configButtonPin = 3;
-const int upButtonPin = 4;
-const int downButtonPin = 5;
-const unsigned int buttonDebounceTime = 100;
+const int upButtonPin = 5;
+const int downButtonPin = 4;
+const unsigned int buttonDebounceTime = 500;
 
 //Indicate if serial should be used
 //If no usb device is connected, serial can not be opened
@@ -99,6 +103,7 @@ unsigned long lastTimeDownButtonPressed = 0;
 int upButtonLastState = HIGH;
 unsigned long lastTimeUpButtonPressed = 0;
 unsigned long timeStampLastLcdDisplay = 0;
+unsigned long lastTimeConfigButtonPressed = 0;
 bool resetDisplay = false;
 
 
@@ -122,6 +127,7 @@ void setup() {
     lcd.clear();
 
     //Attack interrupt
+    lastTimeConfigButtonPressed = millis();
     attachInterrupt(digitalPinToInterrupt(configButtonPin), configButtonISR, FALLING);
     delay(100);
     state = STATE_SHOW_DATE;
@@ -130,6 +136,15 @@ void setup() {
 
 void loop() {
     //Switch to config
+    if (configButtonPressed) {
+        if (debounceTimePassed(lastTimeConfigButtonPressed, buttonDebounceTime)) {
+            lastTimeConfigButtonPressed = millis();
+
+        } else {
+            configButtonPressed = false;
+        }
+    }
+
     if (configButtonPressed && state != STATE_CONFIG) {
         configStateSetup();
     }
@@ -618,7 +633,7 @@ void printArrowsLCD(byte amount, byte xPos, byte yPos, bool up) {
  */
 bool debounceTimePassed(unsigned long lastTimeButtonPressed, unsigned int debounceTime) {
     long time = millis();
-
+    PRINTLN(time < lastTimeButtonPressed || time > lastTimeButtonPressed + debounceTime);
     return time < lastTimeButtonPressed || time > lastTimeButtonPressed + debounceTime;
 }
 
@@ -774,7 +789,12 @@ unsigned long calculatePassedDays() {
 unsigned long calculatePassedMonths() {
     // Refer to https://www.jotform.com/help/443-Mastering-Date-and-Time-Calculation
     //1 month (30.44 days)= 2629743 seconds
-    return calculatePassedSeconds() / 2629743;
+    int passedMonths = (year - START_TIME_YEAR) * 12;
+    passedMonths += month - START_TIME_MONTH;
+    if (day < START_TIME_DAY) passedMonths--;
+    //return calculatePassedSeconds() / 2629743;
+    PRINTLN(passedMonths);
+    return passedMonths;
 }
 
 /**
@@ -783,5 +803,6 @@ unsigned long calculatePassedMonths() {
 unsigned long calculatePassedYears() {
     // Refer to https://www.jotform.com/help/443-Mastering-Date-and-Time-Calculation
     //1 year (365.24 days)= 31556926 seconds
-    return calculatePassedSeconds() / 31556926;
+    //return calculatePassedSeconds() / 31556926;
+    return calculatePassedMonths() / 12;
 }
