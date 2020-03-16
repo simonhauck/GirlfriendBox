@@ -30,4 +30,21 @@ To build the circuit gather all the components and create the wiring according t
 
 Note that this diagram contains only one switch for the power. The second is connected to the backlight pins of the I2C-Display. And now you are already done with the circuit :D yeahh 
 
+## Upload the code
+After creating the circuit open the “girlfriendbox.ino” file with the Arduino IDE or something similar. Add the required libraries from the “lib” folder. In the Arduino IDE you can do this by clicking Sketch > Include Library > Add .ZIP Library. 
+Now you should be able to upload the code to the Arduino and the program should run.
+
+```C++
+#define START_TIME_OF_COUNTER_TEXT "23.05.2019"
+#define START_TIME_OF_COUNTER_UNIX_TIMESTAMP 1558569600
+#define START_TIME_YEAR 2019
+#define START_TIME_MONTH 5
+#define START_TIME_DAY 23
+```
+The first one is the date shown on the display, the second is the same date as unix-timestamp, which is used to calculate the passed seconds, minutes, hours and days. You can use any online converter to get this timestamp. Note: You should add an offset for your timezone. So if you are in timezone +1 and your date is “23.05.2019 00:00” calculate the timestamp with “23.05.2019 01:00”. Last, add the date values for the day, month and year field. Personally I would prefer to calculate these values, but this would be a really big pain and soooo I ignored it... Anyways these are used to calculate the passed months and years, and of course, they only change on the monthly and yearly anniversary. 
+
+Now you can change some more minor details, like the welcome text which will be shown initally and the units for seconds, month, ... , year if you prefer a different language. 
+
+Upload the code to the arduino and set the current date and time. You can do this by pressing the config button (Pin 3). Increase and decrease the values with the buttons on Pin 4 and 5. If you are happy with a value press the config button again.
+
 ## Build the case
