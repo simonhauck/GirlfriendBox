@@ -54,11 +54,9 @@ Of course, you need a case for your box. I created one out of 6mm wood with the 
 
 <p align="center">
   <img src="img/Box_back.jpeg" width= 400>
+  <img src="img/Box_complete.jpeg" width= 400>
 </p>
 If you have your box, you must do some “post processing”. The .dxf file doest not include a hole for the charging-circuit, so you must create it manually. Screw the display in place and fixate the buttons and switches at the back of the case. I used a good amount of hot glue for that. To fixate the Lipo-battery I used some Velcro tape.
 
 If all the components are securely mounted, close the box with some wood screws. This allows you to open it, if something is broken.
-And now you are done :D
-<p align="center">
-  <img src="img/Box_complete.jpeg" width= 400>
-</p>
+And now you are done and have a great present :D 
