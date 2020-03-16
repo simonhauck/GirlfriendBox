@@ -13,8 +13,8 @@ The project idea is inspired by this [video](https://www.youtube.com/watch?v=PbR
 ## What you need
 - 1 Arduino, which is the "brain". I used the [Arduino Nano V3](https://store.arduino.cc/arduino-nano)
 - 1 Real-Time-Clock Module, which keeps track of the time. I used the [DS3231](https://create.arduino.cc/projecthub/MisterBotBreak/how-to-use-a-real-time-clock-module-ds3231-bc90fe)
-- 1 [I2C-LCD-Display](https://www.makerguides.com/character-i2c-lcd-arduino-tutorial/) with 20 * 4 characters
-- 3 Buttons to set the current time
+- 1 [I2C-LCD-Display](https://www.amazon.de/SainSmart-Character-Display-Mega2560-Duemilanove/dp/B007XRHBKA/ref=sr_1_5?__mk_de_DE=%C3%85M%C3%85%C5%BD%C3%95%C3%91&keywords=lcd+display+20+4&qid=1584369187&sr=8-5) with 20 * 4 characters
+- 3 [Buttons](https://www.amazon.de/Youmile-100er-Pack-Miniatur-Mikro-Taster-Tastschalter-Qualit%C3%A4tsschalter-Miniature-6-x-5-mm/dp/B07Q1BXV7T/ref=sr_1_10?__mk_de_DE=%C3%85M%C3%85%C5%BD%C3%95%C3%91&keywords=arduino+buttons&qid=1584369131&sr=8-10) to set the current time
 - 2 [Switches](https://www.digikey.de/product-detail/de/e-switch/EG1201A/EG1902-ND/101723?utm_adgroup=Slide%20Switches&utm_source=google&utm_medium=cpc&utm_campaign=Google%20Shopping_Switches&utm_term=&productid=101723). The first is for power and the second for the backlicht of the display
 - Optionally
   - 1 [Lipo-Battery](https://www.amazon.de/gp/product/B07XCRTXL9/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1), so that you don't require always a power cable. I used a model with 3.7V and 2600mAh
