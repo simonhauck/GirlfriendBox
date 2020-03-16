@@ -30,6 +30,8 @@ To build the circuit gather all the components and create the wiring according t
 
 Note that this diagram contains only one switch for the power. The second is connected to the backlight pins of the I2C-Display. And now you are already done with the circuit :D yeahh 
 
+Optionally you can create a small PCB for the wiring. This makes the assembly much cleaner. Additionally, I recommend using plugs between the components. This makes the assembly and/or maintenance if something breaks much more easy.
+
 ## Upload the code
 After creating the circuit open the “girlfriendbox.ino” file with the Arduino IDE or something similar. Add the required libraries from the “lib” folder. In the Arduino IDE you can do this by clicking Sketch > Include Library > Add .ZIP Library. 
 Now you should be able to upload the code to the Arduino and the program should run.
@@ -45,6 +47,18 @@ The first one is the date shown on the display, the second is the same date as u
 
 Now you can change some more minor details, like the welcome text which will be shown initally and the units for seconds, month, ... , year if you prefer a different language. 
 
-Upload the code to the arduino and set the current date and time. You can do this by pressing the config button (Pin 3). Increase and decrease the values with the buttons on Pin 4 and 5. If you are happy with a value press the config button again.
+Upload the code to the arduino and set the current date and time. You can do this by pressing the config button (Pin 3). Increase and decrease the values with the buttons on Pin 4 and 5. If the value ist correct press the config button again.
 
 ## Build the case
+Of course, you need a case for your box. I created one out of 6mm wood with the help of a laser cutter. If you have access to one of these, you can use the .dxf file in the folder “lasercutter_files”. If not, you have to manually cut/saw a box or you search for a company that will do this for you.
+
+<p align="center">
+  <img src="img/Box_back.jpeg" width= 400>
+</p>
+If you have your box, you must do some “post processing”. The .dxf file doest not include a hole for the charging-circuit, so you must create it manually. Screw the display in place and fixate the buttons and switches at the back of the case. I used a good amount of hot glue for that. To fixate the Lipo-battery I used some Velcro tape.
+
+If all the components are securely mounted, close the box with some wood screws. This allows you to open it, if something is broken.
+And now you are done :D
+<p align="center">
+  <img src="img/Box_complete.jpeg" width= 400>
+</p>
