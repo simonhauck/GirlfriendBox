@@ -13,7 +13,7 @@ The project idea is inspired by this [video](https://www.youtube.com/watch?v=PbR
 ## What you need
 - 1 Arduino, which is the "brain". I used the Arduino Nano V3
 - 1 Real-Time-Clock Module, which keeps track of the time. I used the DS3231
-- 1 LCD-Dispaly with 20 * 4 characters
+- 1 I2C-LCD-Dispaly with 20 * 4 characters
 - 3 Buttons to set the current time
 - 2 Switches. The first is for power and the second for the backlicht of the display
 - Optionally
