@@ -3,7 +3,7 @@ This is a self-made present for your girlfriend or wife.
 
 It is a box, that counts how long you have been together or married in different units. It cycles through seconds, minutes, hours, days, months, years as well as a customizable text, that shows your “Date”. Additionally, it also displays the current date & time at the bottom of the display. 
 
-The project is inspired by this video: [video](https://www.youtube.com/watch?v=PbRNsSK7r4M)
+The project is inspired by this [video](https://www.youtube.com/watch?v=PbRNsSK7r4M).
 
 ## What you need
 - 1 Arduino, which is the "brain". I used the Arduino Nano V3
